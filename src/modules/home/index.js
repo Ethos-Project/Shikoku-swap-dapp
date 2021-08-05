@@ -1,237 +1,262 @@
 import {
-  Button, Grid, makeStyles,
-  Typography
+  Button,
+  Grid,
+  makeStyles,
+  CardHeader,
+  CardContent,
+  CardActions,
+  Typography,
+  Card,
+  TextField,
+  withStyles
 } from '@material-ui/core';
-import PlayArrowIcon from '@material-ui/icons/PlayArrow';
-import React from 'react';
-import cardImage from '../../styles/images/card_image.jpg';
-import circleImage from '../../styles/images/Ethos_Hero_HR.png';
-import { InfoCard } from './components/InfoCard';
+import { useMetaMask } from 'metamask-react';
+import React, { useEffect, useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { setUser } from '../../store/reducers/auth';
+import { buyToken, getAccounts, getBalanceOf } from '../shared/helper/contract';
+import BackgroundImg from '../../assets/images/background1.jpg'
+
+const CustomTextField = withStyles({
+  root: {
+    '& .MuiInputBase-root': {
+      color: 'black'
+    },
+    '& label': {
+      color: 'grey',
+    },
+    '& label.Mui-focused': {
+      color: 'black',
+    },
+    '& .MuiInput-underline:before': {
+      borderBottomColor: 'grey',
+    },
+    '& .MuiInput-underline:after': {
+      borderBottomColor: 'black',
+    },
+    '& .MuiOutlinedInput-root': {
+      '& fieldset': {
+        borderColor: 'grey',
+      },
+      '&:hover fieldset': {
+        borderColor: 'black',
+      },
+      '&.Mui-focused fieldset': {
+        borderColor: 'black',
+      },
+    },
+  },
+})(TextField);
 
 export const Home = () => {
+  const dispatch = useDispatch();
+  const { connect, status, account } = useMetaMask();
+  const connected = status === 'connected';
+  const [accountAddress, setAccount] = useState('');
+  const [accountBalance, setBalance] = useState(0);
   const styles = useStyles();
 
+  useEffect(() => {
+    if (account) {
+      getBalanceOf(account).then(balance => {
+        console.log(balance);
+        setBalance(Number(balance));
+      });
+      setAccount(account.slice(0, 4) + '...' + account.slice(-4));
+    } else {
+      dispatch(
+        setUser({
+          address: null,
+          balance: 0
+        })
+      );
+      setAccount(null);
+    }
+  }, [dispatch, account]);
+
+  const connectAccount = () => {
+    if (connected) return;
+    connect();
+  };
+
+  const buyTool = async () => {
+    if (!connected) {
+      alert('Please connect to your wallet address first!');
+      return;
+    }
+    if (accountBalance < 1) {
+      alert('You have insufficient funds(BNB)!');
+      return;
+    }
+    const accounts = await getAccounts();
+    console.log(accounts)
+    const result = await buyToken(accounts[0], 10 ** 18);
+  };
+
   return (
-    <div className={styles.container}>
-      <div className={styles.backgroundAnim1}></div>
-      <div className={styles.backgroundAnim2}></div>
-      <Grid
-        container
-        direction="column"
-        className={styles.bodyRoot}>
-        <Grid item className={styles.commonItem}>
-          <Grid
-            container
-            direction="column"
-            justifyContent="flex-start"
-            alignItems="flex-start"
-            className={styles.titleSection}
-          >
-            <Grid item className={styles.commonItem}>
-              <Typography variant="h3" component="h3" className={styles.outlineTitle}>
-                Timeless Value
-              </Typography>
-            </Grid>
-            <Grid item className={styles.commonItem}>
-              <Typography variant="h3" component="h3" className={styles.mainHeading}>
-                World's first non-depreciating currency
-              </Typography>
-            </Grid>
-            <Grid item className={styles.commonItem}>
-              <Grid
-                container
-                direction="row"
-                justifyContent="flex-start"
-                alignItems="flex-start"
-                className={styles.slideTitle}>
-                <Grid item className={styles.line}></Grid>
-                <Grid item>
-                  <Typography variant="body1" className={styles.textSlideRight}>
-                    Introducing Temporary coin. A new kind of money that maintains it's buying power irrespective of which direction the market moves in.
-                    </Typography>
-                </Grid>
-              </Grid>
-            </Grid>
-            <Grid item className={styles.commonItem}>
-              <Button variant="contained" size="large" href="#" className={styles.titleUseArthButton}>
-                Use Temporary
-              </Button>
-              <Button
-                startIcon={<PlayArrowIcon />}
-                className={styles.playArrowButton}
-              >
-                Imagine. Temporary
-              </Button>
-            </Grid>
-          </Grid>
-        </Grid>
-        <Grid item className={styles.commonItem}>
-          <div className={styles.cardSection}>
+    <Grid
+      container
+      justifyContent="center"
+      alignItems="center"
+      direction="row"
+      className={styles.cardMainRoot}>
+      <img src={BackgroundImg} className={styles.backgroundImg}></img>
+      <Grid item xs={8} md={6}>
+        <Card className={styles.cardRoot}>
+          <CardHeader
+            title="Toolkit Purchase dApp"
+            classes={{ title: styles.cardMainTitle }}
+          />
+          <CardContent style={{ paddingTop: 5 }}>
+            <Typography variant="h5" component="h5" className={styles.cardSubTitle}>
+              Balance: {accountBalance} $TOOL
+            </Typography>
+          </CardContent>
+          <CardActions>
             <Grid
               container
               direction="column"
               justifyContent="center"
-              alignItems="center">
-              <Grid item xs={12} sm={8} className={styles.cardItem}>
-                <InfoCard
-                  title="Welcome"
-                  content="This is the first project of its kind on Fantom"
-                  imgURL={cardImage}>
-                </InfoCard>
+              alignItems="center"
+              spacing={3}>
+              <Grid item>
+                <CustomTextField
+                  label="Input affliate"
+                  className={styles.affliate}
+                  variant="outlined"
+                  id="custom-css-standard-input"
+                />
               </Grid>
-              <Grid item xs={12} sm={8} className={styles.cardItem}>
-                <InfoCard
-                  title="Step1"
-                  content="This impressive paella is a perfect party dish and a fun meal to cook together with your guests. 
-                  Add 1 cup of frozen peas along with the mussels, if you like."
-                  imgURL={cardImage}
-                  cardActions={false}>
-                </InfoCard>
+              <Grid item>
+                <Button className={styles.buyButton} onClick={buyTool}>
+                  Buy 1 $TOOL (1BNB)
+                </Button>
               </Grid>
-              <Grid item xs={12} sm={8} className={styles.cardItem}>
-                <InfoCard
-                  title="Step2"
-                  content="This impressive paella is a perfect party dish and a fun meal to cook together with your guests. 
-                  Add 1 cup of frozen peas along with the mussels, if you like."
-                  imgURL={cardImage}
-                  cardActions={false}>
-                </InfoCard>
+              <Grid item>
+                <Button className={styles.revealButton}>
+                  Reveal Code
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button className={styles.connectButton} onClick={connectAccount}>
+                  {accountAddress || 'Connect to Wallet'}
+                </Button>
               </Grid>
             </Grid>
-          </div>
-        </Grid>
+          </CardActions>
+        </Card>
       </Grid>
-    </div>
+    </Grid>
   );
 };
 
 const useStyles = makeStyles((theme) => ({
-  container: {
-    padding: '120px 130px 0px 130px',
+  backgroundImg: {
+    position: 'absolute',
+    zIndex: -2,
+    left: '50%',
+    top: '50%',
+    width: '100%',
+    height: '100%',
+    transform: 'translate(-50%, -50%)',
+    objectFit: 'cover'
+  },
+  cardMainRoot: {
+    margin: '50px 0px'
+  },
+  cardRoot: {
+    color: 'black',
+    padding: '50px 0px',
+    boxShadow: '0 0 25px 0 rgb(0 0 0 / 10%)',
+    transition: 'all 0.4s ease-in-out',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
     position: 'relative',
-    overflow: 'hidden',
-    [theme.breakpoints.down("md")]: {
-      padding: '120px 24px',
-      lineHeight: 1.2
+
+    "&:hover": {
+      transform: 'translateY(-10px)'
+    },
+    "&::before": {
+      content: '""',
+      backgroundImage: 'linear-gradient(45deg, white, #d7e9fd)',
+      backgroundSize: 'cover',
+      width: '100%',
+      height: '100%',
+      top: 0,
+      left: 0,
+      position: 'absolute',
+      opacity: 0.5,
+      zIndex: -2,
     }
   },
-  bodyRoot: {
-    position: 'relative',
-    height: '100%'
-  },
-  titleSection: {
-    position: 'relative',
-    paddingTop: 60,
-
+  cardMainTitle: {
+    fontWeight: 500,
+    fontSize: '1.68rem',
     [theme.breakpoints.down("sm")]: {
-      paddingTop: 0
+      fontSize: '1rem'
     }
   },
-  outlineTitle: {
-    fontWeight: 700,
-    lineHeight: '55px',
-    letterSpacing: 1,
-    color: '#303030',
-    WebkitTextStroke: '0.5px #fff',
-    fontSize: 52,
+  cardSubTitle: {
+    fontWeight: 500,
+    [theme.breakpoints.down("sm")]: {
+      fontSize: '0.85rem'
+    }
+  },
+  buyButton: {
+    color: 'black',
+    fontSize: '1rem',
+    fontWeight: 400,
+    width: 341,
+    padding: '0.375rem 0.75rem',
+    textTransform: 'none',
+    backgroundImage: 'linear-gradient(45deg, #51fbff, #5baeff)',
 
-    [theme.breakpoints.down("xs")]: {
-      fontSize: 32,
-      lineHeight: 1.2
+    "&:hover": {
+      opacity: 0.9
+    },
+    [theme.breakpoints.down("sm")]: {
+      fontSize: '0.8rem',
+      width: 170
     }
   },
-  mainHeading: {
-    fontWeight: 700,
-    fontStyle: 'normal',
-    color: 'rgba(255,255,255,0.88)',
-    lineHeight: 1.5,
-    fontSize: 52,
+  revealButton: {
+    color: 'black',
+    fontSize: '1rem',
+    fontWeight: 400,
+    width: 341,
+    padding: '0.375rem 0.75rem',
+    textTransform: 'none',
+    backgroundImage: 'linear-gradient(45deg, #ff9d0a, #ff6c00)',
 
-    [theme.breakpoints.down("xs")]: {
-      fontSize: 32,
-      lineHeight: 1.2
-    }
-  },
-  slideTitle: {
-    maxWidth: 645,
-    position: 'relative',
-    margin: '32px 0'
-  },
-  line: {
-    background: 'linear-gradient(38.44deg, #F47F57 15.81%, #FD5656 87.57%)',
-    width: 4,
-    position: 'absolute',
-    height: '100%'
-  },
-  textSlideRight: {
-    overflow: 'hidden',
-    lineHeight: '24px',
-    color: 'rgba(255,255,255,0.64)',
-    fontWeight: 700,
-    paddingLeft: 19,
-    fontSize: 21
-  },
-  commonItem: {
-    width: '100%'
-  },
-  backgroundAnim1: {
-    backgroundImage: `url(${circleImage})`,
-    width: 1300,
-    height: 1300,
-    position: 'absolute',
-    backgroundSize: 'cover',
-    right: -300,
-    top: 50,
-    zIndex: -2,
-    WebkitAnimation: `$background-animate 25s infinite linear`,
-    animation: `$background-animate 25s infinite linear`
-  },
-  backgroundAnim2: {
-    backgroundImage: `url(${circleImage})`,
-    width: 1300,
-    height: 1300,
-    position: 'absolute',
-    backgroundSize: 'cover',
-    right: 25,
-    top: 50,
-    zIndex: -2,
-    WebkitAnimation: `$circleAround 25s infinite linear`,
-    animation: `$circleAround 25s infinite linear`
-  },
-  titleUseArthButton: {
-    background: 'linear-gradient(38.44deg, #F47F57 15.81%, #FD5656 87.57%)',
-    border: '1px solid #EB7254',
-    borderRadius: 6,
-    color: 'white',
-    minWidth: 160,
-    padding: '12px 15px',
-    fontWeight: 600
-  },
-  cardSection: {
-    margin: '130px -10px 0px -10px'
-  },
-  cardItem: {
-    paddingBottom: 40
-  },
-  playArrowButton: {
-    padding: '12px 15px',
-    fontWeight: 600
-  },
-  "@keyframes background-animate": {
-    from: {
-      transform: 'rotate(0deg)'
+    "&:hover": {
+      opacity: 0.9
     },
-    to: {
-      transform: 'rotate(-360deg)'
+    [theme.breakpoints.down("sm")]: {
+      fontSize: '0.8rem',
+      width: 170
     }
   },
-  "@keyframes circleAround": {
-    from: {
-      transform: 'rotate(0deg) translateX(325px)'
+  connectButton: {
+    fontWeight: 400,
+    fontSize: '1rem',
+    color: 'black',
+    marginTop: 20,
+    textTransform: 'none',
+    backgroundImage: 'linear-gradient(45deg, #51fbff, #5baeff)',
+
+    "&:hover": {
+      opacity: 0.9
     },
-    to: {
-      transform: 'rotate(-360deg) translateX(325px)'
+    [theme.breakpoints.down("sm")]: {
+      fontSize: '0.8rem',
+      marginTop: 15
     }
+  },
+  affliate: {
+    color: 'black'
   }
 }));
 
