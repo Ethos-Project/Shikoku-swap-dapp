@@ -14,8 +14,20 @@ import { useMetaMask } from 'metamask-react';
 import React, { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { setUser } from '../../store/reducers/auth';
-import { buyToken, getAccounts, getBalanceOf } from '../shared/helper/contract';
-import BackgroundImg from '../../assets/images/background1.jpg'
+import {
+  buyToken,
+  getBalanceOf,
+  hasRevealed,
+  revealCode,
+  web3
+} from '../shared/helper/contract';
+import Web3 from 'web3';
+import license from '../../assets/txts/license.txt';
+import BackgroundImg from '../../assets/images/background1.jpg';
+import BackgroundVideo from './components/Video/Video';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Alert from '@material-ui/lab/Alert';
+import { getRandomInt } from '../shared/helper/utils';
 
 const CustomTextField = withStyles({
   root: {
@@ -54,15 +66,21 @@ export const Home = () => {
   const connected = status === 'connected';
   const [accountAddress, setAccount] = useState('');
   const [accountBalance, setBalance] = useState(0);
+  const [balanceSpinner, setBalanceSpiner] = useState(false);
+  const [secretButtonSpinner, setSecretButtonSpiner] = useState(false);
+  const [secretCode, setSecretCode] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
   const styles = useStyles();
 
   useEffect(() => {
     if (account) {
+      setBalanceSpiner(true);
+      setAccount(account.slice(0, 4) + '...' + account.slice(-4));
       getBalanceOf(account).then(balance => {
         console.log(balance);
         setBalance(Number(balance));
+        setBalanceSpiner(false);
       });
-      setAccount(account.slice(0, 4) + '...' + account.slice(-4));
     } else {
       dispatch(
         setUser({
@@ -77,20 +95,63 @@ export const Home = () => {
   const connectAccount = () => {
     if (connected) return;
     connect();
+    setAlertMessage('');
   };
 
   const buyTool = async () => {
     if (!connected) {
-      alert('Please connect to your wallet address first!');
+      setAlertMessage('Please connect to your wallet address first!');
+      return;
+    }
+    web3.setProvider(Web3.givenProvider);
+    buyToken(account, 10 ** 18).then((result) => {
+      getBalanceOf(account).then(balance => {
+        console.log(balance);
+        setBalance(Number(balance));
+      });
+    });
+    setAlertMessage('');
+  };
+
+  const revealSecretCode = async () => {
+    if (!connected) {
+      setAlertMessage('Please connect to your wallet address first!');
+      return;
+    }
+    const alreadyRevealed = await hasRevealed(account);
+    console.log(alreadyRevealed)
+    if (alreadyRevealed) {
+      setAlertMessage(
+        `Already revealed the secret code for your current account. 
+        Can't reveal another code for the same account!`);
       return;
     }
     if (accountBalance < 1) {
-      alert('You have insufficient funds(BNB)!');
+      setAlertMessage(
+        `It looks like you don't have enough $TOOL(at least 1) in your wallet to access our group!`);
       return;
     }
-    const accounts = await getAccounts();
-    console.log(accounts)
-    const result = await buyToken(accounts[0], 10 ** 18);
+    setSecretButtonSpiner(true);
+    try {
+      const revealResult = await revealCode(account);
+    } catch {
+      setAlertMessage('');
+      setSecretButtonSpiner(false);
+      return;
+    }
+    const checkedValue = await hasRevealed(account)
+
+    if (checkedValue) {
+      let licenseText = await fetch(license);
+      licenseText = await licenseText.text();
+      licenseText = licenseText.split(/\r?\n/);
+      const rand = getRandomInt(0, licenseText.length);
+      setSecretCode(licenseText[rand]);
+      setAlertMessage('');
+    } else {
+      setAlertMessage(`Revealing secret code is failed for some reason!`);
+    }
+    setSecretButtonSpiner(false);
   };
 
   return (
@@ -100,17 +161,32 @@ export const Home = () => {
       alignItems="center"
       direction="row"
       className={styles.cardMainRoot}>
-      <img src={BackgroundImg} className={styles.backgroundImg}></img>
+      <BackgroundVideo></BackgroundVideo>
+      {/* <img src={BackgroundImg} className={styles.backgroundImg}></img> */}
       <Grid item xs={8} md={6}>
         <Card className={styles.cardRoot}>
+          {alertMessage &&
+            <Alert
+              variant="filled"
+              severity="error"
+              style={{
+                width: '100%',
+                justifyContent: 'center',
+                alignItems: 'center'
+              }}>
+              {alertMessage}
+            </Alert>
+          }
           <CardHeader
             title="Toolkit Purchase dApp"
             classes={{ title: styles.cardMainTitle }}
           />
           <CardContent style={{ paddingTop: 5 }}>
-            <Typography variant="h5" component="h5" className={styles.cardSubTitle}>
-              Balance: {accountBalance} $TOOL
-            </Typography>
+            {balanceSpinner ? <CircularProgress style={{ marginBottom: -14.5 }}></CircularProgress> :
+              <Typography variant="h5" component="h5" className={styles.cardSubTitle}>
+                Balance: {accountBalance} $TOOL
+              </Typography>
+            }
           </CardContent>
           <CardActions>
             <Grid
@@ -133,9 +209,23 @@ export const Home = () => {
                 </Button>
               </Grid>
               <Grid item>
-                <Button className={styles.revealButton}>
-                  Reveal Code
-                </Button>
+                {secretCode ?
+                  <h2 className={styles.realSecretCode}>
+                    Your secret code is:
+                    <p className={styles.realSecretCodeBody}>
+                      {secretCode}
+                    </p>
+                  </h2> :
+                  <div className={styles.secretButton}>
+                    <Button
+                      className={styles.revealButton}
+                      onClick={revealSecretCode}
+                      disabled={secretButtonSpinner}>
+                      Reveal Code
+                    </Button>
+                    {secretButtonSpinner && <CircularProgress size={24} className={styles.secretSpinner} />}
+                  </div>
+                }
               </Grid>
               <Grid item>
                 <Button className={styles.connectButton} onClick={connectAccount}>
@@ -257,6 +347,26 @@ const useStyles = makeStyles((theme) => ({
   },
   affliate: {
     color: 'black'
+  },
+  secretButton: {
+    position: 'relative'
+  },
+  secretSpinner: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -12,
+    marginLeft: -12,
+  },
+  realSecretCode: {
+    fontWeight: 500,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  realSecretCodeBody: {
+    color: 'red',
+    margin: '0px 6px'
   }
 }));
 
