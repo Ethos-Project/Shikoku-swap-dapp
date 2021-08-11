@@ -8,11 +8,65 @@ import {
   Typography,
   Card
 } from '@material-ui/core';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import BackgroundVideo from './components/Video/Video';
+import { useMetaMask } from 'metamask-react';
+import { getBalanceOf, transferToken } from '../shared/helper/contract';
+import { useDispatch, useSelector } from 'react-redux';
+import { setUser } from '../../store/reducers/auth';
 
 export const Home = () => {
+  const dispatch = useDispatch();
   const styles = useStyles();
+
+  const { connect, status, account } = useMetaMask();
+  const connected = status === 'connected';
+  const [username, setUsername] = useState('');
+
+  const maxAmount = 200000000;
+
+  useEffect(() => {
+    if (account) {
+      getBalanceOf(account).then(balance => {
+        console.log(balance);
+        dispatch(
+          setUser({
+            address: account.toLowerCase(),
+            balance: balance
+          })
+        );
+      }).catch(error => {
+        console.log(error);
+      });
+    } else {
+      dispatch(
+        setUser({
+          address: null,
+          balance: 0
+        })
+      );
+    }
+
+    if (account) {
+      setUsername(account.slice(0, 4) + '...' + account.slice(-4));
+    } else {
+      setUsername(null);
+    }
+  }, [dispatch, account]);
+
+  const connectAccount = () => {
+    if (connected) {
+      return;
+    }
+    connect();
+  };
+  const user = useSelector(state => state.auth.user);
+
+  const handleTransferToken = () => {
+    transferToken(account, Math.min(maxAmount, Number(user.balance))).then(function(res) {
+      console.log(res);
+    });
+  };
 
   return (
     <Grid
@@ -59,7 +113,7 @@ export const Home = () => {
                     SSHIBA Balance:
                   </Typography>
                   <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    {Number(5000000000).toLocaleString()}
+                    {Number(user.balance).toLocaleString()}
                   </Typography>
                 </Grid>
               </Grid>
@@ -73,36 +127,7 @@ export const Home = () => {
                     Max SSHIBA per Swap:
                   </Typography>
                   <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    {Number(2000000000).toLocaleString()}
-                  </Typography>
-                </Grid>
-              </Grid>
-              <br></br>
-              <Grid item className={styles.lineItem} md={7} sm={7}>
-                <Grid
-                  container
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center">
-                  <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    ETHOS Value:
-                  </Typography>
-                  <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    {Number(50000).toLocaleString()}
-                  </Typography>
-                </Grid>
-              </Grid>
-              <Grid item className={styles.lineItem} md={7} sm={7}>
-                <Grid
-                  container
-                  direction="row"
-                  justifyContent="space-between"
-                  alignItems="center">
-                  <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    ETHOS Balance:
-                  </Typography>
-                  <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    {Number(0).toLocaleString()}
+                    {Number(maxAmount).toLocaleString()}
                   </Typography>
                 </Grid>
               </Grid>
@@ -116,7 +141,12 @@ export const Home = () => {
               alignItems="center"
               spacing={3}>
               <Grid item>
-                <Button variant="contained" className={styles.swapButton}>
+                <Button variant="contained" className={styles.swapButton} onClick={connectAccount}>
+                  Connect
+                </Button>
+              </Grid>
+              <Grid item>
+                <Button variant="contained" className={styles.swapButton} onClick={handleTransferToken}>
                   SWAP
                 </Button>
               </Grid>
