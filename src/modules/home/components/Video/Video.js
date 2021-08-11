@@ -1,6 +1,6 @@
 import React from 'react';
 import { makeStyles } from '@material-ui/core';
-import BackgroundMP4 from '../../../../assets/images/background1.mp4';
+import BackgroundMP4 from '../../../../assets/images/Line_background.mp4';
 
 
 const BackgroundVideo = () => {
@@ -21,7 +21,7 @@ const BackgroundVideo = () => {
 
 const useStyles = makeStyles((theme) => ({
   backgroundVideo: {
-    position: 'absolute',
+    position: 'fixed',
     width: '100%',
     left: '50%',
     top: '50%',
