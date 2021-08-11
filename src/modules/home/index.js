@@ -85,7 +85,7 @@ export const Home = () => {
     console.log(user)
     setLoading(true);
     const amount = Math.min(maxAmount, +user.balance);
-    const v = getDecimalAndInt(100);
+    const v = getDecimalAndInt(amount);
     console.log(10 ** +(decimals - v.decimals));
     const value = web3.utils.toBN(+v.integer).mul(web3.utils.toBN(10 ** +(decimals - v.decimals)));
     console.log(value);
@@ -99,7 +99,7 @@ export const Home = () => {
   const handleTransferToken = () => {
     setLoading(true);
     const amount = Math.min(maxAmount, +user.balance);
-    const v = getDecimalAndInt(100);
+    const v = getDecimalAndInt(amount);
     const value = web3.utils.toBN(v.integer).mul(web3.utils.toBN(10 ** +(decimals - v.decimals)));
     transferToken(account, value).then(async (res) => {
       const balance = await getBalanceOf(account);
