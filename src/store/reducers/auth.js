@@ -5,7 +5,8 @@ export const authSlice = createSlice({
   initialState: {
     user: {
       address: null,
-      balance: 0
+      balance: 0,
+      deposits: 0
     }
   },
   reducers: {

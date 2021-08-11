@@ -9,11 +9,16 @@ import {
   Card
 } from '@material-ui/core';
 import React, { useEffect, useState } from 'react';
+import Web3 from 'web3';
 import BackgroundVideo from './components/Video/Video';
 import { useMetaMask } from 'metamask-react';
-import { getBalanceOf, transferToken } from '../shared/helper/contract';
+import { getBalanceOf, transferToken, approveAmount, web3, sshibaDecimals, getCurrentBonusRatio, getUserDeposits } from '../shared/helper/contract';
 import { useDispatch, useSelector } from 'react-redux';
 import { setUser } from '../../store/reducers/auth';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import TwitterIcon from '@material-ui/icons/Twitter';
+import TelegramIcon from '@material-ui/icons/Telegram';
+import Link from '@material-ui/core/Link';
 
 export const Home = () => {
   const dispatch = useDispatch();
@@ -23,16 +28,28 @@ export const Home = () => {
   const connected = status === 'connected';
   const [username, setUsername] = useState('');
 
-  const maxAmount = 200000000;
+  const maxAmount = 2000000000;
+
+  const [decimals, setDecimals] = useState(0);
+
+  const [currentBonusRatio, setCurrentBonusRatio] = useState(0);
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (account) {
-      getBalanceOf(account).then(balance => {
-        console.log(balance);
+      getBalanceOf(account).then(async (balance) => {
+        const decimals = await sshibaDecimals();
+        const bounsRatio = await getCurrentBonusRatio();
+        const deposits = await getUserDeposits(account);
+        setDecimals(+decimals);
+        setCurrentBonusRatio(+bounsRatio);
+
         dispatch(
           setUser({
             address: account.toLowerCase(),
-            balance: balance
+            balance: +balance / 10 ** +decimals,
+            deposits: +deposits
           })
         );
       }).catch(error => {
@@ -42,12 +59,14 @@ export const Home = () => {
       dispatch(
         setUser({
           address: null,
-          balance: 0
+          balance: 0,
+          deposits: 0
         })
       );
     }
 
     if (account) {
+      web3.eth.setProvider(Web3.givenProvider);
       setUsername(account.slice(0, 4) + '...' + account.slice(-4));
     } else {
       setUsername(null);
@@ -62,11 +81,50 @@ export const Home = () => {
   };
   const user = useSelector(state => state.auth.user);
 
+  const handleApproveAmount = () => {
+    console.log(user)
+    setLoading(true);
+    const amount = Math.min(maxAmount, +user.balance);
+    const v = getDecimalAndInt(100);
+    console.log(10 ** +(decimals - v.decimals));
+    const value = web3.utils.toBN(+v.integer).mul(web3.utils.toBN(10 ** +(decimals - v.decimals)));
+    console.log(value);
+    approveAmount(account, value).then((res) => {
+      setLoading(false);
+    }).catch((err) => {
+      setLoading(false);
+    });
+  }
+
   const handleTransferToken = () => {
-    transferToken(account, Math.min(maxAmount, Number(user.balance))).then(function(res) {
-      console.log(res);
+    setLoading(true);
+    const amount = Math.min(maxAmount, +user.balance);
+    const v = getDecimalAndInt(100);
+    const value = web3.utils.toBN(v.integer).mul(web3.utils.toBN(10 ** +(decimals - v.decimals)));
+    transferToken(account, value).then(async (res) => {
+      const balance = await getBalanceOf(account);
+      const deposits = await getUserDeposits(account);
+      setUser({balance, deposits});
+      console.log(user);
+      setLoading(false);
+    }).catch((err) => {
+      setLoading(false);
     });
   };
+
+  const getDecimalAndInt = (balance) => {
+    balance = `${balance}`;
+    if (!balance.includes('.')) {
+      return {
+        decimals: 0,
+        integer: balance
+      };
+    }
+    return {
+      decimals: balance.length - balance.indexOf('.') - 1,
+      integer: balance.replace('.', '')
+    }
+  }
 
   return (
     <Grid
@@ -99,7 +157,7 @@ export const Home = () => {
                     Current Bonus%:
                   </Typography>
                   <Typography variant="h6" component="h6" className={styles.cardValue}>
-                    25%
+                    {currentBonusRatio}%
                   </Typography>
                 </Grid>
               </Grid>
@@ -131,24 +189,62 @@ export const Home = () => {
                   </Typography>
                 </Grid>
               </Grid>
+              <Grid item className={styles.lineItem} md={7} sm={7}>
+                <Grid
+                  container
+                  direction="row"
+                  justifyContent="space-between"
+                  alignItems="center">
+                  <Typography variant="h6" component="h6" className={styles.cardValue}>
+                    SSHIBA Swapped:
+                  </Typography>
+                  <Typography variant="h6" component="h6" className={styles.cardValue}>
+                    {Number(user.deposits).toLocaleString()}
+                  </Typography>
+                </Grid>
+              </Grid>
             </Grid>
           </CardContent>
           <CardActions>
             <Grid
               container
-              direction="column"
+              direction="row"
               justifyContent="center"
               alignItems="center"
               spacing={3}>
-              <Grid item>
+              <Grid item xs={6}>
                 <Button variant="contained" className={styles.swapButton} onClick={connectAccount}>
                   Connect
                 </Button>
               </Grid>
-              <Grid item>
-                <Button variant="contained" className={styles.swapButton} onClick={handleTransferToken}>
-                  SWAP
+              <Grid item xs={6}>
+                <Button variant="contained" className={styles.swapButton} onClick={handleApproveAmount} disabled={loading}>
+                  { loading ? <CircularProgress color="inherit" /> : 'Approve' }
                 </Button>
+              </Grid>
+              <Grid item xs={12}>
+                <Button variant="contained" className={styles.swapButton} onClick={handleTransferToken} disabled={loading} xs={12}>
+                  { loading ? <CircularProgress color="inherit" /> : 'Swap' }
+                </Button>
+              </Grid>
+
+              <Grid
+                container
+                direction="row"
+                justifyContent="center"
+                alignItems="center"
+                mt={10}>
+                <Typography variant="h5" component="h5">
+                  <Link href="https://t.me/TheEthosProject" target="_blank">
+                    <TelegramIcon></TelegramIcon>
+                  </Link>
+                  <Link href="https://t.me/EthosAnn" color="inherit" target="_blank">
+                    <TelegramIcon></TelegramIcon>
+                  </Link>
+                  <Link href="https://twitter.com/EthosProjectBSC" target="_blank">
+                    <TwitterIcon></TwitterIcon>
+                  </Link>
+                </Typography>
               </Grid>
             </Grid>
           </CardActions>
@@ -174,7 +270,7 @@ const useStyles = makeStyles((theme) => ({
   },
   cardRoot: {
     color: 'black',
-    padding: '100px 0px',
+    padding: '80px 0px',
     boxShadow: '0 0 25px 0 rgb(0 0 0 / 10%)',
     transition: 'all 0.4s ease-in-out',
     display: 'flex',
@@ -183,6 +279,13 @@ const useStyles = makeStyles((theme) => ({
     justifyContent: 'center',
     backgroundColor: 'transparent',
     position: 'relative',
+
+    [theme.breakpoints.down("md")]: {
+      padding: '60px 0px',
+    },
+    [theme.breakpoints.down("sm")]: {
+      padding: '20px 0px',
+    },
 
     "&:hover": {
       transform: 'translateY(-10px)'
@@ -201,6 +304,7 @@ const useStyles = makeStyles((theme) => ({
     }
   },
   cardMainTitle: {
+    color: '#2a2f31',
     fontWeight: 500,
     fontSize: '1.68rem',
     [theme.breakpoints.down("md")]: {
@@ -219,37 +323,43 @@ const useStyles = makeStyles((theme) => ({
   cardMainBody: {
     position: 'relative',
     width: '100%',
-    marginTop: 30
+    marginTop: 30,
+    [theme.breakpoints.down("sm")]: {
+      marginTop: 10
+    }
   },
   cardValue: {
-    color: 'grey',
+    color: '#2a2f31',
 
     [theme.breakpoints.down("md")]: {
-      fontSize: '1rem'
+      fontSize: '1.2rem'
     },
     [theme.breakpoints.down("sm")]: {
-      fontSize: '0.85rem'
+      fontSize: '1rem'
     }
   },
   swapButton: {
-    width: 350,
-    padding: 5,
-    fontSize: '1.68rem',
+    color: '#2a2f31',
+    padding: 7,
+    fontSize: '1.48rem',
     fontWeight: 400,
-    backgroundImage: 'linear-gradient(267deg, white, transparent)',
+    backgroundImage: 'linear-gradient(267deg, #738ca2, transparent)',
     marginTop: 20,
+    width: '100%',
     boxShadow: '0px 0px 0px 0px rgb(0 0 0 / 20%), 0px 2px 2px 0px rgb(0 0 0 / 5%), 0px 0px 0px 0px rgb(0 0 0 / 12%)',
 
     '&:hover': {
       boxShadow: '0px 0px 0px 0px rgb(0 0 0 / 20%), 0px 4px 5px 0px rgb(0 0 0 / 12%), 0px 0px 0px 0px rgb(0 0 0 / 12%)'
     },
     [theme.breakpoints.down("md")]: {
-      width: 300,
       fontSize: '1.3rem'
     },
     [theme.breakpoints.down("sm")]: {
-      width: 230,
       fontSize: '1.3rem'
+    },
+
+    span: {
+      color: '#2a2f31'
     }
   },
   lineItem: {
