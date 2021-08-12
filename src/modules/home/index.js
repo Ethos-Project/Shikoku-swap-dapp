@@ -82,14 +82,8 @@ export const Home = () => {
   const user = useSelector(state => state.auth.user);
 
   const handleApproveAmount = () => {
-    console.log(user)
     setLoading(true);
-    const amount = Math.min(maxAmount, +user.balance);
-    const v = getDecimalAndInt(amount);
-    console.log(10 ** +(decimals - v.decimals));
-    const value = web3.utils.toBN(+v.integer).mul(web3.utils.toBN(10 ** +(decimals - v.decimals)));
-    console.log(value);
-    approveAmount(account, value).then((res) => {
+    approveAmount(account, web3.utils.toBN(maxAmount).mul(web3.utils.toBN(10 ** +decimals))).then((res) => {
       setLoading(false);
     }).catch((err) => {
       setLoading(false);
@@ -111,7 +105,6 @@ export const Home = () => {
       setLoading(false);
     });
   };
-
   const getDecimalAndInt = (balance) => {
     balance = `${balance}`;
     if (!balance.includes('.')) {
@@ -213,7 +206,7 @@ export const Home = () => {
               alignItems="center"
               spacing={3}>
               <Grid item xs={6}>
-                <Button variant="contained" className={styles.swapButton} onClick={connectAccount}>
+                <Button variant="contained" className={styles.swapButton} onClick={connectAccount} disabled={connected}>
                   Connect
                 </Button>
               </Grid>
