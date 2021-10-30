@@ -2,7 +2,6 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
 import CssBaseline from '@material-ui/core/CssBaseline';
-import { MetaMaskProvider } from 'metamask-react';
 
 import './index.css';
 import App from './App';
@@ -12,14 +11,12 @@ import ThemeProvider from './core/ThemeProvider';
 
 ReactDOM.render(
   <React.StrictMode>
-    <MetaMaskProvider>
-      <Provider store={store}>
-        <ThemeProvider>
-          <CssBaseline />
-          <App />
-        </ThemeProvider>
-      </Provider>
-    </MetaMaskProvider>
+    <Provider store={store}>
+      <ThemeProvider>
+        <CssBaseline />
+        <App />
+      </ThemeProvider>
+    </Provider>
   </React.StrictMode>,
   document.getElementById('root')
 );
