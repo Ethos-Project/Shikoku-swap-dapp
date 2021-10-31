@@ -51,7 +51,7 @@ export const Home = () => {
   // const [username, setUsername] = useState('');
 
   const maxAmount = 500000000000000;
-  const endTime = new Date('2021-11-07');
+  const endTime = new Date('2021-11-01');
 
   const [decimals, setDecimals] = useState(0);
 
